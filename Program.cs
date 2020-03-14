@@ -109,16 +109,20 @@ namespace WindowsPdbReader
 
             while (offset < module.cbSyms)
             {
+                Console.Write($"({offset:x8}) ");
+
                 var siz = InterpretUInt16(bits, ref offset);
                 var stop = offset + siz;
                 var rec = InterpretUInt16(bits, ref offset);
+
+                Console.WriteLine($"{(SYM)rec}");
 
                 switch ((SYM)rec)
                 {
                     case SYM.S_GMANPROC:
                     case SYM.S_LMANPROC:
                     {
-                        proc = InterpretStruct<ManProcSym>(bits, ref offset); // copy
+                        proc = InterpretStruct<ManProcSym>(in bits, ref offset); // copy
 
                         if (proc.token == token)
                         {
@@ -138,7 +142,7 @@ namespace WindowsPdbReader
             return false;
         }
 
-        private static void GetLineNumberInformation(ReadOnlySpan<byte> streamData, in DbiModuleInfo module, uint functionOffset, IReadOnlyDictionary<int, string> names, out string sourceFile, out int sourceLine, out int sourceColumn)
+        private static void GetLineNumberInformation(in ReadOnlySpan<byte> streamData, in DbiModuleInfo module, uint functionOffset, IReadOnlyDictionary<int, string> names, out string sourceFile, out int sourceLine, out int sourceColumn)
         {
             sourceFile = string.Empty;
             sourceLine = 0;
@@ -157,12 +161,12 @@ namespace WindowsPdbReader
                 {
                     case DEBUG_S_SUBSECTION.LINES:
                     {
-                        ref readonly CV_LineSection sec = ref InterpretStruct<CV_LineSection>(streamData, ref offset);
+                        ref readonly CV_LineSection sec = ref InterpretStruct<CV_LineSection>(in streamData, ref offset);
 
                         // BUG: Needs to match the bestPointSoFar model
                         if (functionOffset >= sec.off && functionOffset <= sec.off + sec.cod)
                         {
-                            ref readonly CV_SourceFile file = ref InterpretStruct<CV_SourceFile>(streamData, ref offset);
+                            ref readonly CV_SourceFile file = ref InterpretStruct<CV_SourceFile>(in streamData, ref offset);
 
                             var plin = offset;
                             var pcol = offset + (8 * (int)file.count);
@@ -197,7 +201,7 @@ namespace WindowsPdbReader
                     {
                         while (offset < limit)
                         {
-                            ref readonly CV_FileCheckSum chk = ref InterpretStruct<CV_FileCheckSum>(streamData, ref offset);
+                            ref readonly CV_FileCheckSum chk = ref InterpretStruct<CV_FileCheckSum>(in streamData, ref offset);
                             offset += chk.len;
                             sourceFile = names[(int)chk.name]; // BUG: Is this really correct? Maybe it should be file.index?
                             Alignment(4, ref offset);
@@ -215,14 +219,14 @@ namespace WindowsPdbReader
         {
             var offset = 0;
 
-            ref readonly DbiHeader dbiHeader = ref InterpretStruct<DbiHeader>(bits, ref offset);
+            ref readonly DbiHeader dbiHeader = ref InterpretStruct<DbiHeader>(in bits, ref offset);
 
             var modules = new List<DbiModuleInfo>();
 
             var end = offset + dbiHeader.gpmodiSize;
             while (offset < end)
             {
-                ref readonly DbiModuleInfo moduleInfo = ref InterpretStruct<DbiModuleInfo>(bits, ref offset);
+                ref readonly DbiModuleInfo moduleInfo = ref InterpretStruct<DbiModuleInfo>(in bits, ref offset);
                 SkipCString(bits, ref offset); // moduleName
                 SkipCString(bits, ref offset); // objectName
                 Alignment(4, ref offset);
@@ -253,7 +257,7 @@ namespace WindowsPdbReader
             end = offset + dbiHeader.dbghdrSize;
             if (dbiHeader.dbghdrSize > 0)
             {
-                ref readonly DbiDbgHdr header = ref InterpretStruct<DbiDbgHdr>(bits, ref offset);
+                ref readonly DbiDbgHdr header = ref InterpretStruct<DbiDbgHdr>(in bits, ref offset);
             }
 
             offset = end;
@@ -443,11 +447,12 @@ namespace WindowsPdbReader
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ref readonly T InterpretStruct<T>(ReadOnlySpan<byte> data, ref int offset)
+        private static ref readonly T InterpretStruct<T>(in ReadOnlySpan<byte> data, ref int offset)
             where T : unmanaged
         {
+            ReadOnlySpan<byte> slice = data.Slice(offset);
             offset += Marshal.SizeOf<T>();
-            return ref MemoryMarshal.AsRef<T>(data);
+            return ref MemoryMarshal.AsRef<T>(slice);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
