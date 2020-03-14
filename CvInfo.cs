@@ -1,12 +1,11 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
-
-using System;
-using System.Runtime.InteropServices;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace WindowsPdbReader
 {
+    using System;
+    using System.Runtime.InteropServices;
+
     internal enum SYM
     {
         S_END = 0x0006,  // Block, procedure, "with" or thunk end
@@ -150,8 +149,7 @@ namespace WindowsPdbReader
 
         S_RECTYPE_MAX,              // one greater than last
         S_RECTYPE_LAST = S_RECTYPE_MAX - 1,
-
-    };
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct ManProcSym
@@ -169,7 +167,7 @@ namespace WindowsPdbReader
         internal ushort seg;
         internal byte flags;      // (CV_PROCFLAGS) Proc flags
         internal ushort retReg;     // Register return value is in (may not be used for all archs)
-    };
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct CV_LineSection
@@ -194,21 +192,21 @@ namespace WindowsPdbReader
         linenumStart = 0x00ffffff,   // line where statement/expression starts
         deltaLineEnd = 0x7f000000,   // delta to line where statement ends (optional)
         fStatement = 0x80000000,   // true if a statement linenumber, else an expression line num
-    };
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct CV_Line
     {
         internal uint offset;         // Offset to start of code bytes for line number
         internal uint flags;          // (CV_Line_Flags)
-    };
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct CV_Column
     {
         internal ushort offColumnStart;
         internal ushort offColumnEnd;
-    };
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct CV_FileCheckSum

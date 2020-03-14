@@ -1,12 +1,11 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
-
-using System;
-using System.Runtime.CompilerServices;
+﻿// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace WindowsPdbReader
 {
+    using System;
+    using System.Runtime.CompilerServices;
+
     internal sealed class DataStream
     {
         private readonly int contentSize;
@@ -15,6 +14,8 @@ namespace WindowsPdbReader
 
         public DataStream()
         {
+            this.contentSize = 0;
+            this.pages = Array.Empty<int>();
         }
 
         public DataStream(int contentSize, int[] pages)
@@ -25,65 +26,14 @@ namespace WindowsPdbReader
 
         public int Length => this.contentSize;
 
-        public void Read(PageAwarePdbReader reader, byte[] buffer)
+        public void Read(PdbReader reader, byte[] buffer)
         {
             if (buffer.Length < this.contentSize)
             {
                 ThrowInsufficientBufferSizeException();
             }
 
-            this.Read(reader, 0, buffer, 0, contentSize);
-        }
-
-        private void Read(PageAwarePdbReader reader, int position, byte[] bytes, int offset, int data)
-        {
-            if (position + data > this.contentSize)
-            {
-                ThrowDataStreamEndOfFileException(position, data);
-            }
-
-            if (position == this.contentSize)
-            {
-                return;
-            }
-
-            int left = data;
-            int page = position / reader.PageSize;
-            int rema = position % reader.PageSize;
-
-            // First get remained of first page.
-            if (rema != 0)
-            {
-                int todo = reader.PageSize - rema;
-                if (todo > left)
-                {
-                    todo = left;
-                }
-
-                reader.Seek(this.pages[page], rema);
-                reader.Read(bytes, offset, todo);
-
-                offset += todo;
-                left -= todo;
-                page++;
-            }
-
-            // Now get the remaining pages.
-            while (left > 0)
-            {
-                int todo = reader.PageSize;
-                if (todo > left)
-                {
-                    todo = left;
-                }
-
-                reader.Seek(this.pages[page], 0);
-                reader.Read(bytes, offset, todo);
-
-                offset += todo;
-                left -= todo;
-                page++;
-            }
+            this.Read(reader, 0, buffer, 0, this.contentSize);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -96,6 +46,57 @@ namespace WindowsPdbReader
         private static void ThrowDataStreamEndOfFileException(int position, int data)
         {
             throw new Exception($"DataStream can't read off end of stream. (pos={position},siz={data})");
+        }
+
+        private void Read(PdbReader reader, int position, byte[] bytes, int offset, int data)
+        {
+            if (position + data > this.contentSize)
+            {
+                ThrowDataStreamEndOfFileException(position, data);
+            }
+
+            if (position == this.contentSize)
+            {
+                return;
+            }
+
+            var left = data;
+            var page = position / reader.PageSize;
+            var rema = position % reader.PageSize;
+
+            // First get remained of first page.
+            if (rema != 0)
+            {
+                var todo = reader.PageSize - rema;
+                if (todo > left)
+                {
+                    todo = left;
+                }
+
+                reader.Seek(this.pages[page], rema);
+                reader.Read(bytes, offset, todo);
+
+                offset += todo;
+                left -= todo;
+                ++page;
+            }
+
+            // Now get the remaining pages.
+            while (left > 0)
+            {
+                var todo = reader.PageSize;
+                if (todo > left)
+                {
+                    todo = left;
+                }
+
+                reader.Seek(this.pages[page], 0);
+                reader.Read(bytes, offset, todo);
+
+                offset += todo;
+                left -= todo;
+                ++page;
+            }
         }
     }
 }
